@@ -1,0 +1,35 @@
+name: Build MMS iPhone
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract the MMS source
+        run: |
+          set -euo pipefail
+          unzip -q MMS-Supervisor-iPhone-1.0-Source.zip -d project
+          test -f project/mobile/build-ipa.sh
+          echo '{"sdk":{"version":"10.0.100","rollForward":"disable"}}' > project/global.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.100'
+      - name: Build and verify unsigned iPhone IPA
+        working-directory: project
+        run: |
+          set -euo pipefail
+          sudo xcode-select --switch /Applications/Xcode_26.0.1.app/Contents/Developer
+          dotnet workload install ios --version 10.0.100
+          bash mobile/build-ipa.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MMS-iPhone
+          path: project/artifacts/MMS-Supervisor-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
