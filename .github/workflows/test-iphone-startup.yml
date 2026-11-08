@@ -1,0 +1,33 @@
+name: MMS iPhone - Login startup test
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract the MMS source
+        run: |
+          set -euo pipefail
+          unzip -q MMS-Supervisor-iPhone-1.0-Source.zip -d project
+          test -f project/mobile/build-ipa.sh
+          echo '{"sdk":{"version":"10.0.103","rollForward":"disable"}}' > project/global.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.103'
+      - name: Check login on the iPhone simulator
+        working-directory: project
+        run: |
+          set -euo pipefail
+          sudo xcode-select --switch /Applications/Xcode_26.2.app/Contents/Developer
+          xcodebuild -version
+          if ! xcrun simctl list runtimes available | grep -E 'iOS 26\.2( |\()' > /dev/null; then
+            xcodebuild -downloadPlatform iOS -buildVersion 26.2
+          fi
+          dotnet workload install ios --version 10.0.103
+          bash mobile/build-ipa.sh --startup-only
